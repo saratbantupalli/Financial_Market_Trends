@@ -1,0 +1,16 @@
+---
+title: "Market Trends"
+author: "Sarat Bantupalli"
+date: "2025-09-29"
+output: 
+  rmarkdown::github_document: 
+    toc: true
+    toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval= TRUE, message = FALSE, warning = FALSE)
+```
+
+
+The aim of this project is to plot the trends in major financial data over time. For these plots, I considered major equity markets indexes, and GDP data from the government.
