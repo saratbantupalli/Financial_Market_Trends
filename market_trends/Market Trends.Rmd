@@ -12,5 +12,187 @@ output:
 knitr::opts_chunk$set(echo = TRUE, eval= TRUE, message = FALSE, warning = FALSE)
 ```
 
+# Goal of the project
 
-The aim of this project is to plot the trends in major financial data over time. For these plots, I considered major equity markets indexes, and GDP data from the government.
+The goal of this project is to plot the trends in major financial data over time. For these plots, I considered major equity markets indexes, and GDP data from the government. Data from the St. Louis Federal Reserve database, [FRED](https://fred.stlouisfed.org/), was used for this project. 
+
+# Required Packages
+We need the following packages to connect to the FRED API, retrieve the data, and summarize it.  
+
++ `tidyverse`: for data manipulation and plotting  
++ `httr`: to connect to the API and obtain the data in JSON format  
++ `jsonlite`: to parse data obtained in JSON data format  
++ `lubridate` : to work with datetime type data objects  
+
+```{r libraries}
+library(tidyverse)
+library(httr)
+library(jsonlite)
+library(lubridate)
+```
+
+# API structure 
+The API has a well written documentation that describes how to access different data sets. Based on this documentation, the components that make up a full valid API request include:  
+
++ Base URL, which is constant across all API URLs  
++ Endpoint  
++ API key  
++ Frequency  
++ Aggregation Method  
++ File type  
++ [Real-time period, optional](https://fred.stlouisfed.org/docs/api/fred/realtime_period.html)- not used here  
++ 
+
+## Base URL
+The base URL for all APIs is constant.
+
+`https://api.stlouisfed.org/fred/`
+
+## Endpoints
+List of all available data sets can be found on the [FRED website](https://fred.stlouisfed.org/docs/api/fred/#API). This page summarizes how to obtain data from the endpoint of interest. The endpoint of interest for the project is *series* (gets economic data for a series). Each series has a *series_id* to retrieve the data. The following series_id's were considered for this project:  
+
++ *CPGDPAI*: contributions to percent change in real GDP by industry  
++ *SP500*: S&P 500 index over time  
++ *DJIA*: Dow Jones Industrial Average index over time  
++ *NASDAQCOM*: NASDAQ index over time
+
+## API key
+Each user needs to request their unique key through the [FRED API website](https://fredaccount.stlouisfed.org/apikeys). 
+
+## Frequency
+For this project, we only considered quarterly data for the variables. 
+
+## Aggregation Method
+For this project, if more data is available in the quarter, the data is averaged to output a single value for the quarter.
+
+## File type
+The user has the choice to select either an xml or json file to retrieve the data. For the purpose of this project, *json* file was chosen. 
+
+
+# API Function
+A function was created that queries the FRED database API and retrieves data for series of choice.
+
+```{r api_function}
+api_data <- function(series = "CPGDPAI"){
+  # The base URL for queries in the API is constant.
+  base_url <- "https://api.stlouisfed.org/fred/"
+  # The Endpoint of the API
+  api_endpoint1 <- "series/observations?series_id="
+  api_endpoint2 <- series
+  # API key
+  api_key1 <- "&api_key="
+  api_key2 <- ""
+  # Frequency of data- daily, monthly , quarterly etc
+  freq <- "&frequency=q"
+  # Averaged data for the quarter
+  agg <- "&aggregation_method=avg"
+  # File type
+  file_type <- "&file_type=json"
+  # Here the complete URL for API was constructed by pasting the base_url and api_endpoint url with options
+  output_url <- paste0(base_url, api_endpoint1, api_endpoint2, 
+                       api_key1, api_key2,
+                       freq, agg,
+                       file_type)
+  #The GET function from httr package was used to connect to the API and get the data 
+  raw_data <- GET(output_url)
+  # The raw data in JSON format is converted to a data frame in these 2 steps
+  parsed_data <- fromJSON(rawToChar(raw_data$content))
+  parsed_data <- data.frame((parsed_data$observations))
+  # Selecting the variables of interest and converting the formats for the variables
+  parsed_data <- parsed_data %>% select("date", "value") %>% 
+    mutate(date = ymd(date), value = as.numeric(value))
+  # Converting the output to a tibble type
+  parsed_data <- tibble(parsed_data)
+  return(parsed_data)
+  
+}
+
+
+```
+
+
+# Data
+Here the data for various series is retrieved. 
+
+## GDP data
+Here the percentage change in US GDP over time data is retrieved from the FRED database.
+
+```{r gdp_data}
+# Percentage GDP data
+gdp_data <- api_data(series = "CPGDPAI")
+# Subset the data for variables of interest
+gdp_data <- gdp_data %>% select(date = "date", gdp="value") %>% mutate(gdp = gdp * 1000)
+# Print first few observations
+head(gdp_data)
+
+```
+
+## S&P500 data
+Here the percentage change in S&P 500 Index over time data is retrieved from the FRED database.
+
+```{r snp_data}
+# Percentage GDP data
+snp_data <- api_data(series = "SP500")
+# Subset the data for variables of interest
+snp_data <- snp_data %>% select(date = "date", snp_index="value")
+# Print first few observations
+head(snp_data)
+
+```
+
+## Dow Jones data
+Here the percentage change in Dow Jones Industrial Average Index over time data is retrieved from the FRED database.
+
+```{r dow_data}
+# Percentage GDP data
+dow_data <- api_data(series = "DJIA")
+# Subset the data for variables of interest
+dow_data <- dow_data %>% select(date = "date", dow_index="value")
+# Print first few observations
+head(dow_data)
+
+```
+
+## NASDAQ data
+Here the percentage change in NASDAQ Index over time data is retrieved from the FRED database.
+
+```{r nasdaq_data}
+# Percentage GDP data
+nasdaq_data <- api_data(series = "NASDAQCOM")
+# Subset the data for variables of interest
+nasdaq_data <- nasdaq_data %>% select(date = "date", nasdaq_index="value")
+# Print first few observations
+head(nasdaq_data)
+
+```
+
+## Combined data
+Here the data for all variables of interest is combined into a single data frame.
+
+```{r combined_data}
+# Make a list of all data frames
+df_list <- list(gdp_data, snp_data, dow_data, nasdaq_data)
+# Join the data frames
+combined_data <- reduce(df_list, full_join, by = "date")
+# Pivoting the data into long format from wide format
+combined_data <- combined_data %>% 
+  pivot_longer(cols = 2:5, names_to = "index", values_to = "value") %>% drop_na()
+```
+
+# Trends
+Here the trends of the data are plotted as a time series.
+
+```{r}
+plot1 <- combined_data %>% ggplot(aes(x = date, y = value)) + 
+  geom_line(aes(colour = index)) + 
+  labs(x = "date", y = "Value", title = "Trends in GDP and Indexes") + 
+  theme_bw() + xlim(ymd("2012-01-1"), ymd("2025-10-01"))
+plot1
+
+```
+
+
+
+
+
+
