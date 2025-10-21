@@ -1,0 +1,17 @@
+---
+title: "MIDAS_Models_basics"
+author: "Sarat Bantupalli"
+date: "2025-10-21"
+output: 
+  rmarkdown::github_document: 
+    toc: true
+    toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Goal of the project
+
+The goal of this project is understand the MIDAS models R Package. I used this project to summarize the basics of the model, and use the `midasr` package to understand it. 
